@@ -931,6 +931,31 @@ select.mctl {
 .gcal-btn-sync    { background:transparent; color:var(--ink); border:1px solid var(--hairline-2); }
 .gcal-btn:disabled { opacity:.5; cursor:default; }
 
+/* ── ACTION NOTES ── */
+.a-notes {
+  background:var(--paper-2);
+  border:1px solid var(--hairline);
+  border-radius:14px;
+  padding:12px 14px;
+  margin-bottom:14px;
+}
+.a-notes-lbl {
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:500;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-4);
+  margin-bottom:5px;
+}
+.a-notes-text {
+  font-size:14px;
+  color:var(--ink-2);
+  line-height:1.55;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
 /* ── ANIMATIONS ── */
 @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 </style>
@@ -1102,13 +1127,19 @@ select.mctl {
         </select>
       </div>
     </div>
-    <div class="mrow">
-      <label class="mlbl">Due date</label>
-      <input class="mctl" type="date" id="mD">
+    <div class="mgrid">
+      <div class="mrow">
+        <label class="mlbl">Due date</label>
+        <input class="mctl" type="date" id="mD">
+      </div>
+      <div class="mrow">
+        <label class="mlbl">Time</label>
+        <input class="mctl" type="time" id="mTm">
+      </div>
     </div>
     <div class="mrow">
       <label class="mlbl">Notes</label>
-      <input class="mctl" id="mN" placeholder="Extra context…">
+      <textarea class="mctl" id="mN" placeholder="Extra context…" rows="3" style="height:auto;padding-top:14px;padding-bottom:14px;resize:none;line-height:1.5"></textarea>
     </div>
     <div class="mbtns">
       <button class="mbtn mbtn-cancel" onclick="closeModal()">Cancel</button>
@@ -1127,6 +1158,10 @@ select.mctl {
         <div class="a-name" id="aName"></div>
         <div class="a-meta" id="aMeta"></div>
       </div>
+    </div>
+    <div class="a-notes" id="aNotes" style="display:none">
+      <div class="a-notes-lbl">Notes</div>
+      <div class="a-notes-text" id="aNotesText"></div>
     </div>
     <div class="a-actions">
       <button class="a-btn a-done" id="aDoneBtn" onclick="actionDone()"></button>
@@ -1233,6 +1268,7 @@ const KEY       = 'eza_focus_v3';
 const CAT_KEY   = 'eza_cats_v1';
 const TIMER_KEY = 'eza_timer_v1';
 const GCAL_KEY  = 'eza_gcal_v1';
+const AREA_KEY  = 'eza_area_v1';
 
 let tasks = [], area = 'all', stackOpen = false, actionId = null, hideCompleted = false;
 let cats = [];
@@ -1276,12 +1312,21 @@ const SEED = [
 function load() {
   const r = localStorage.getItem(KEY);
   tasks = r ? JSON.parse(r) : JSON.parse(JSON.stringify(SEED));
+  if (!r) save(); /* persist seed immediately so refresh never wipes data */
+
   const c = localStorage.getItem(CAT_KEY);
   cats = c ? JSON.parse(c) : JSON.parse(JSON.stringify(DEFAULT_CATS));
+  if (!c) saveCats();
+
   const t = localStorage.getItem(TIMER_KEY);
   if (t) timerCfg = {...timerCfg, ...JSON.parse(t)};
+
   const g = localStorage.getItem(GCAL_KEY);
   if (g) { const gd = JSON.parse(g); document.getElementById('gClientId').value = gd.clientId || ''; }
+
+  /* restore last selected area tab */
+  const savedArea = localStorage.getItem(AREA_KEY);
+  if (savedArea) area = savedArea;
 }
 function save()     { localStorage.setItem(KEY,      JSON.stringify(tasks)); }
 function saveCats() { localStorage.setItem(CAT_KEY,  JSON.stringify(cats)); }
@@ -1314,8 +1359,6 @@ function initHdr() {
   const h=new Date().getHours();
   const g=h<5?'Good night':h<12?'Good morning':h<17?'Good afternoon':'Good evening';
   document.getElementById('navGreet').textContent=g+', Eza';
-  document.getElementById('sTime').textContent=
-    new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
 
 /* ── WALLET CARDS ── */
@@ -1347,6 +1390,7 @@ function stackClick(e) {
 }
 function selectArea(a) {
   area=a;
+  localStorage.setItem(AREA_KEY, area);
   renderTabs();
   render();
 }
@@ -1368,6 +1412,7 @@ function renderTabs() {
 }
 function setTab(btn,a) {
   area=a;
+  localStorage.setItem(AREA_KEY, area);
   renderTabs();
   if(stackOpen) toggleStack();
   render();
@@ -1470,6 +1515,7 @@ function mkCard(task) {
     else { const d=new Date(task.due+'T00:00:00'); lbl=d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); cls='chip-due'; }
     dueHtml=`<span class="chip ${cls}">${lbl}</span>`;
   }
+  const timeHtml=task.time?`<span class="chip">${task.time}</span>`:'';
 
   const cat=catById(task.area);
   const grad=areaGradient(task.area);
@@ -1483,7 +1529,7 @@ function mkCard(task) {
       <div class="tc-name">${esc(task.title)}</div>
       <div class="tc-chips">
         <span class="chip">${cat.name}</span>
-        ${dueHtml}
+        ${dueHtml}${timeHtml}
       </div>
     </div>
     <span class="prio ${PC}">${PL}</span>`;
@@ -1505,7 +1551,7 @@ function quickAdd(e) {
   if(e.key!=='Enter') return;
   const v=document.getElementById('qinput').value.trim(); if(!v) return;
   const inf=cats.find(c=>c.id===area)?area:(cats[0]?.id||'personal');
-  tasks.unshift({id:Date.now(),title:v,area:inf,priority:3,due:area==='today'?td():'',done:false,notes:''});
+  tasks.unshift({id:Date.now(),title:v,area:inf,priority:3,due:area==='today'?td():'',time:'',done:false,notes:''});
   save(); render();
   document.getElementById('qinput').value='';
 }
@@ -1522,7 +1568,7 @@ function openModal() {
 }
 function closeModal() {
   document.getElementById('mbg').classList.remove('on');
-  ['mT','mN','mD'].forEach(id=>document.getElementById(id).value='');
+  ['mT','mN','mD','mTm'].forEach(id=>document.getElementById(id).value='');
 }
 function saveTask() {
   const title=document.getElementById('mT').value.trim(); if(!title) return;
@@ -1531,6 +1577,7 @@ function saveTask() {
     area:    document.getElementById('mA').value,
     priority:parseInt(document.getElementById('mP').value),
     due:     document.getElementById('mD').value,
+    time:    document.getElementById('mTm').value,
     done:false,
     notes:   document.getElementById('mN').value.trim(),
   });
@@ -1557,7 +1604,18 @@ function openAction(id) {
   aIco.querySelector('.disc-body').style.background = gradients[grad] || gradients.aurora;
 
   document.getElementById('aName').textContent=task.title;
-  document.getElementById('aMeta').textContent=cat.name+'  ·  '+PL+(task.due?'  ·  '+(task.due===td()?'Due today':task.due):'');
+  let metaParts=[cat.name, PL];
+  if(task.due) metaParts.push(task.due===td()?'Due today':task.due);
+  if(task.time) metaParts.push(task.time);
+  document.getElementById('aMeta').textContent=metaParts.join('  ·  ');
+
+  const notesEl=document.getElementById('aNotes');
+  if(task.notes){
+    document.getElementById('aNotesText').textContent=task.notes;
+    notesEl.style.display='';
+  } else {
+    notesEl.style.display='none';
+  }
 
   const btn=document.getElementById('aDoneBtn');
   btn.textContent=task.done?'Mark as to do':'Mark as done';
@@ -1816,8 +1874,8 @@ async function gcalSync() {
 load();
 initTheme();
 initHdr();
-/* auto-select Today if there are tasks due today */
-if (tasks.some(x => x.due === td() && !x.done)) area = 'today';
+/* auto-select Today on first-ever open (no saved tab preference) */
+if (!localStorage.getItem(AREA_KEY) && tasks.some(x => x.due === td() && !x.done)) area = 'today';
 renderTabs();
 renderModalAreas();
 resetPomoDisplay();
