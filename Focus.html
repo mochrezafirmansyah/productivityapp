@@ -30,7 +30,7 @@
   --danger:  #c11a3b;
   --sans:  "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono:  "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --pixel: "Pixelify Sans", "Geist Mono", monospace;
+  --pixel: "Geist Mono", "Pixelify Sans", monospace;
   --r-icon:  14px;
   --r-tile:  18px;
   --r-card:  24px;
@@ -938,21 +938,6 @@ select.mctl {
 <body>
 <div class="app">
 
-  <!-- Status bar -->
-  <div class="status">
-    <div class="s-time" id="sTime">9:41</div>
-    <div class="s-icons">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>
-      </svg>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="7" width="18" height="11" rx="2"/>
-        <path d="M22 11v4"/>
-        <rect x="4" y="9" width="12" height="7" rx="1" fill="currentColor"/>
-      </svg>
-    </div>
-  </div>
-
   <!-- Top nav -->
   <div class="topnav">
     <div class="nav-title" id="navGreet">Focus</div>
@@ -1831,6 +1816,8 @@ async function gcalSync() {
 load();
 initTheme();
 initHdr();
+/* auto-select Today if there are tasks due today */
+if (tasks.some(x => x.due === td() && !x.done)) area = 'today';
 renderTabs();
 renderModalAreas();
 resetPomoDisplay();
