@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gili Air Harbour · Operator Panel</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary:  #2563eb;
+      --ph:       #1d4ed8;
+      --danger:   #dc2626;
+      --dh:       #b91c1c;
+      --bg:       #f1f5f9;
+      --surface:  #ffffff;
+      --border:   #e2e8f0;
+      --text:     #1e293b;
+      --muted:    #64748b;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─── */
+    .app-hdr {
+      background: #0a1020;
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid #f59e0b;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .app-hdr h1 { font-size: 1.15rem; font-weight: 700; color: #f59e0b; letter-spacing: 0.04em; }
+    .app-hdr .sub { font-size: 0.72rem; color: #6b7280; margin-top: 2px; }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    .live-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; }
+    .live-dot.off { background:#dc2626; }
+
+    .hdr-clock { font-size: 1.4rem; font-weight: 600; color: #38bdf8; font-variant-numeric:tabular-nums; font-family:'Courier New',monospace; }
+
+    /* ── TOOLBAR ─── */
+    .toolbar {
+      padding: 14px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      text-decoration: none;
+      transition: background 0.12s, opacity 0.12s;
+    }
+
+    .btn-primary  { background: var(--primary); color:#fff; }
+    .btn-primary:hover  { background: var(--ph); }
+    .btn-outline  { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover  { background: var(--bg); }
+    .btn-ghost    { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size:0.75rem; padding:5px 10px; }
+    .btn-ghost:hover    { color: var(--text); background: var(--bg); }
+    .btn-danger   { background: var(--danger); color:#fff; }
+    .btn-danger:hover   { background: var(--dh); }
+
+    .toolbar .spacer { margin-left: auto; }
+
+    /* ── TABLE ─── */
+    .tbl-wrap {
+      padding: 16px 24px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      font-size: 0.88rem;
+    }
+
+    thead tr { background: #f8fafc; border-bottom: 2px solid var(--border); }
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr:last-child { border-bottom: none; }
+
+    td { padding: 10px 14px; vertical-align: middle; }
+
+    .td-time { font-weight:700; font-variant-numeric:tabular-nums; color:#1e40af; font-size:1rem; white-space:nowrap; }
+    .td-dest { font-weight:600; }
+    .td-co   { color: var(--muted); font-size:0.83rem; }
+    .td-note { color:#b45309; font-size:0.78rem; font-style:italic; max-width:140px; }
+
+    /* Status select inline */
+    .ss {
+      padding: 4px 24px 4px 9px;
+      border-radius: 20px;
+      border: 1.5px solid;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+    }
+
+    .ss.s-SCHEDULED { background-color:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+    .ss.s-ARRIVING  { background-color:#fffbeb; color:#92400e; border-color:#fcd34d; }
+    .ss.s-DOCKING   { background-color:#eff6ff; color:#1e40af; border-color:#93c5fd; }
+    .ss.s-DOCKED    { background-color:#f0fdf4; color:#166534; border-color:#86efac; }
+    .ss.s-BOARDING  { background-color:#fff7ed; color:#9a3412; border-color:#fdba74; }
+    .ss.s-DEPARTED  { background-color:#f8fafc; color:#94a3b8; border-color:#e2e8f0; }
+    .ss.s-CANCELLED { background-color:#fef2f2; color:#991b1b; border-color:#fca5a5; }
+    .ss.s-DELAYED   { background-color:#fffbeb; color:#92400e; border-color:#fcd34d; }
+
+    .actions { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+
+    /* ── MODAL ─── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: white;
+      border-radius: 10px;
+      padding: 28px;
+      width: 500px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+    }
+
+    .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 22px; }
+
+    .fg { margin-bottom: 15px; }
+    .fg label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .fg input,
+    .fg select,
+    .fg textarea {
+      width: 100%;
+      padding: 8px 11px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      color: var(--text);
+      background: white;
+      transition: border 0.15s;
+    }
+    .fg input:focus, .fg select:focus, .fg textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .fg-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── TOAST ─── */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 0.83rem;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.28s;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.ok  { border-left: 4px solid #22c55e; }
+    .toast.err { border-left: 4px solid #ef4444; }
+
+    /* ── COUNT BADGE ─── */
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 1px 7px;
+      margin-left: 6px;
+    }
+
+    .empty-row td {
+      text-align: center;
+      padding: 48px;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-hdr">
+    <div>
+      <h1>⚓ Gili Air Harbour — Operator Panel</h1>
+      <div class="sub">Manage departures · Update boat status from radio</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px">
+      <div class="hdr-clock" id="opClock">--:--</div>
+      <div class="live-badge">
+        <span class="live-dot" id="liveDot"></span>
+        <span id="liveLabel">CONNECTING</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddModal()">+ Add Departure</button>
+    <a href="/display.html" target="_blank" class="btn btn-outline">↗ Open Display Board</a>
+    <span class="spacer"></span>
+    <button class="btn btn-outline" style="color:#dc2626;border-color:#fca5a5" onclick="resetDefault()">Reset to Default Schedule</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Destination</th>
+          <th>Operator / Company</th>
+          <th>Note</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr class="empty-row"><td colspan="6">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Add / Edit Modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h2 id="modalTitle">Add Departure</h2>
+      <input type="hidden" id="editId">
+
+      <div class="fg-row">
+        <div class="fg">
+          <label>Departure Time</label>
+          <input type="time" id="fTime" required>
+        </div>
+        <div class="fg">
+          <label>Status</label>
+          <select id="fStatus">
+            <option value="SCHEDULED">SCHEDULED</option>
+            <option value="ARRIVING">ARRIVING</option>
+            <option value="DOCKING">DOCKING</option>
+            <option value="DOCKED">DOCKED</option>
+            <option value="BOARDING">BOARDING</option>
+            <option value="DEPARTED">DEPARTED</option>
+            <option value="DELAYED">DELAYED</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>Destination</label>
+        <input type="text" id="fDest" placeholder="e.g. Bangsal, Gili Trawangan, Gili Meno" list="destList" autocomplete="off">
+        <datalist id="destList">
+          <option value="Bangsal">
+          <option value="Gili Trawangan">
+          <option value="Gili Meno">
+        </datalist>
+      </div>
+
+      <div class="fg">
+        <label>Boat Operator / Company</label>
+        <input type="text" id="fCompany" placeholder="e.g. Blue Water Express" list="coList" autocomplete="off">
+        <datalist id="coList">
+          <option value="Kuda Hitam Express">
+          <option value="Blue Water Express">
+          <option value="Wahana Gili Ocean">
+          <option value="Marina Srikandi">
+          <option value="Gili Getaway">
+          <option value="Marlin Boat">
+          <option value="Ostina Fast Boat">
+          <option value="Gili Cat">
+        </datalist>
+      </div>
+
+      <div class="fg">
+        <label>Note (optional — visible on display board)</label>
+        <input type="text" id="fNote" placeholder="e.g. Delayed 30 min · Pier 2 · Rough seas">
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEntry()">Save Departure</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  (() => {
+    'use strict';
+
+    let schedules = [];
+    let isEdit    = false;
+
+    // Operator clock
+    function tickClock() {
+      const n = new Date();
+      document.getElementById('opClock').textContent =
+        String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    // ── Render table ──────────────────────────────────
+    function renderTable(data) {
+      schedules = [...data].sort((a,b) => a.scheduledTime.localeCompare(b.scheduledTime));
+      const tbody = document.getElementById('tbody');
+
+      if (!schedules.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No departures scheduled. Click "Add Departure" to begin.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = schedules.map(s => `
+        <tr id="row-${s.id}">
+          <td class="td-time">${esc(s.scheduledTime)}</td>
+          <td class="td-dest">${esc(s.destination)}</td>
+          <td class="td-co">${esc(s.company)}</td>
+          <td class="td-note">${esc(s.note || '')}</td>
+          <td>
+            <select class="ss s-${s.status}" data-id="${s.id}"
+                    onchange="changeStatus('${s.id}', this)">
+              ${statusOpts(s.status)}
+            </select>
+          </td>
+          <td class="actions">
+            <button class="btn-ghost" onclick="openEditModal('${s.id}')">Edit</button>
+            <button class="btn-ghost" style="color:#dc2626;border-color:#fca5a5"
+                    onclick="deleteEntry('${s.id}')">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function esc(s) {
+      return String(s||'')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    const STATUSES = ['SCHEDULED','ARRIVING','DOCKING','DOCKED','BOARDING','DEPARTED','DELAYED','CANCELLED'];
+
+    function statusOpts(current) {
+      return STATUSES.map(s => `<option value="${s}"${s===current?' selected':''}>${s}</option>`).join('');
+    }
+
+    // ── Status change inline ──────────────────────────
+    window.changeStatus = async function(id, selectEl) {
+      const status = selectEl.value;
+      selectEl.disabled = true;
+      try {
+        await api('PUT', `/api/schedules/${id}`, { status });
+        selectEl.className = `ss s-${status}`;
+        selectEl.innerHTML = statusOpts(status);
+        showToast(`Status → ${status}`, 'ok');
+      } catch {
+        showToast('Failed to update status', 'err');
+      } finally {
+        selectEl.disabled = false;
+      }
+    };
+
+    // ── Modal ─────────────────────────────────────────
+    window.openAddModal = function() {
+      isEdit = false;
+      document.getElementById('modalTitle').textContent = 'Add Departure';
+      document.getElementById('editId').value   = '';
+      document.getElementById('fTime').value    = '';
+      document.getElementById('fDest').value    = '';
+      document.getElementById('fCompany').value = '';
+      document.getElementById('fStatus').value  = 'SCHEDULED';
+      document.getElementById('fNote').value    = '';
+      document.getElementById('overlay').classList.add('open');
+      document.getElementById('fTime').focus();
+    };
+
+    window.openEditModal = function(id) {
+      const e = schedules.find(s => s.id === id);
+      if (!e) return;
+      isEdit = true;
+      document.getElementById('modalTitle').textContent = 'Edit Departure';
+      document.getElementById('editId').value   = id;
+      document.getElementById('fTime').value    = e.scheduledTime;
+      document.getElementById('fDest').value    = e.destination;
+      document.getElementById('fCompany').value = e.company;
+      document.getElementById('fStatus').value  = e.status;
+      document.getElementById('fNote').value    = e.note || '';
+      document.getElementById('overlay').classList.add('open');
+    };
+
+    window.closeModal = function() {
+      document.getElementById('overlay').classList.remove('open');
+    };
+
+    document.getElementById('overlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('overlay')) closeModal();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    window.saveEntry = async function() {
+      const id   = document.getElementById('editId').value;
+      const body = {
+        scheduledTime: document.getElementById('fTime').value,
+        destination:   document.getElementById('fDest').value.trim(),
+        company:       document.getElementById('fCompany').value.trim(),
+        status:        document.getElementById('fStatus').value,
+        note:          document.getElementById('fNote').value.trim(),
+      };
+
+      if (!body.scheduledTime) return showToast('Departure time is required', 'err');
+      if (!body.destination)   return showToast('Destination is required', 'err');
+      if (!body.company)       return showToast('Operator / company name is required', 'err');
+
+      try {
+        if (isEdit && id) {
+          await api('PUT', `/api/schedules/${id}`, body);
+          showToast('Departure updated', 'ok');
+        } else {
+          await api('POST', '/api/schedules', body);
+          showToast('Departure added', 'ok');
+        }
+        closeModal();
+      } catch {
+        showToast('Failed to save', 'err');
+      }
+    };
+
+    window.deleteEntry = async function(id) {
+      const entry = schedules.find(s => s.id === id);
+      const label = entry ? `${entry.scheduledTime} → ${entry.destination}` : 'this departure';
+      if (!confirm(`Delete departure: ${label}?`)) return;
+      try {
+        await api('DELETE', `/api/schedules/${id}`);
+        showToast('Departure removed', 'ok');
+      } catch {
+        showToast('Failed to delete', 'err');
+      }
+    };
+
+    window.resetDefault = async function() {
+      if (!confirm('Reset ALL schedules to the default timetable? All custom entries will be lost.')) return;
+      try {
+        await api('POST', '/api/reset');
+        showToast('Schedule reset to default', 'ok');
+      } catch {
+        showToast('Reset failed', 'err');
+      }
+    };
+
+    // ── API helper ────────────────────────────────────
+    async function api(method, url, body) {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    // ── Toast ─────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, type) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className   = `toast show ${type||'ok'}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ── Socket.io ─────────────────────────────────────
+    const socket = io();
+
+    socket.on('connect', () => {
+      document.getElementById('liveDot').classList.remove('off');
+      document.getElementById('liveLabel').textContent = 'LIVE';
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('liveDot').classList.add('off');
+      document.getElementById('liveLabel').textContent = 'OFFLINE';
+    });
+
+    socket.on('update', data => renderTable(data));
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gili Air Harbour · Departures</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #060a14;
+      --surface1: #0a1020;
+      --surface2: #0d1526;
+      --border:   #1a2540;
+      --accent:   #f59e0b;
+      --blue:     #38bdf8;
+      --text:     #e2e8f0;
+      --muted:    #4b5563;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ─────────────────────────────────────── */
+    .hdr {
+      flex-shrink: 0;
+      background: var(--surface1);
+      border-bottom: 3px solid var(--accent);
+      padding: 18px 32px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .brand-name {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .brand-sub {
+      font-size: 0.68rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+
+    .clock { text-align: right; }
+
+    .clock-time {
+      font-size: 3.2rem;
+      font-weight: 300;
+      color: var(--blue);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      font-family: 'Courier New', monospace;
+    }
+
+    .clock-date {
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    /* ── ATTENTION BANNER (shown when boat is DOCKED/BOARDING) ── */
+    #attentionBanner {
+      flex-shrink: 0;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 32px 0;
+    }
+
+    #attentionBanner.visible { display: flex; }
+
+    .banner-item {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 14px 22px;
+      border-radius: 6px;
+      animation: borderGlow 2s infinite;
+    }
+
+    .banner-docked {
+      background: linear-gradient(135deg, #052e16, #14532d);
+      border: 1.5px solid #22c55e;
+    }
+
+    .banner-boarding {
+      background: linear-gradient(135deg, #2d1503, #431d07);
+      border: 1.5px solid #f97316;
+    }
+
+    @keyframes borderGlow {
+      0%, 100% { box-shadow: 0 0 16px rgba(34,197,94,0.25); }
+      50%       { box-shadow: 0 0 32px rgba(34,197,94,0.55); }
+    }
+
+    .banner-item.banner-boarding { animation: borderGlowOrange 2s infinite; }
+
+    @keyframes borderGlowOrange {
+      0%, 100% { box-shadow: 0 0 16px rgba(249,115,22,0.25); }
+      50%       { box-shadow: 0 0 32px rgba(249,115,22,0.55); }
+    }
+
+    .banner-icon { font-size: 2rem; flex-shrink: 0; }
+
+    .banner-body {}
+
+    .banner-title {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .banner-docked  .banner-title { color: #4ade80; }
+    .banner-boarding .banner-title { color: #fdba74; }
+
+    .banner-sub {
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      margin-top: 3px;
+    }
+
+    .banner-docked  .banner-sub { color: #86efac; }
+    .banner-boarding .banner-sub { color: #fed7aa; }
+
+    /* ── COLUMN LABELS ───────────────────────────────── */
+    .col-hdr {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 108px 1fr 195px;
+      padding: 8px 32px;
+      background: #070b15;
+      border-bottom: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .col-hdr span {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: #2d3f5a;
+    }
+
+    /* ── DEPARTURES LIST ─────────────────────────────── */
+    .dep-outer {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .dep-scroll {
+      height: 100%;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .dep-scroll::-webkit-scrollbar { display: none; }
+
+    /* ── DEPARTURE ROW ───────────────────────────────── */
+    .row {
+      display: grid;
+      grid-template-columns: 108px 1fr 195px;
+      align-items: center;
+      padding: 16px 32px;
+      border-bottom: 1px solid #111b30;
+      border-left: 3px solid transparent;
+      transition: background 0.4s, border-color 0.4s;
+    }
+
+    .row:nth-child(odd)  { background: var(--surface2); }
+    .row:nth-child(even) { background: var(--surface1); }
+
+    .row[data-status="ARRIVING"] {
+      border-left-color: #f59e0b;
+      background: rgba(245,158,11,0.05) !important;
+    }
+    .row[data-status="DOCKING"] {
+      border-left-color: #38bdf8;
+      background: rgba(56,189,248,0.05) !important;
+    }
+    .row[data-status="DOCKED"] {
+      border-left-color: #22c55e;
+      background: rgba(34,197,94,0.07) !important;
+    }
+    .row[data-status="BOARDING"] {
+      border-left-color: #f97316;
+      background: rgba(249,115,22,0.07) !important;
+    }
+    .row[data-status="DEPARTED"] {
+      opacity: 0.3;
+    }
+    .row[data-status="CANCELLED"] {
+      border-left-color: #ef4444;
+      background: rgba(239,68,68,0.04) !important;
+      opacity: 0.55;
+    }
+    .row[data-status="DELAYED"] {
+      border-left-color: #f59e0b;
+      background: rgba(245,158,11,0.04) !important;
+    }
+
+    /* Row cells */
+    .r-time {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .time-val {
+      font-size: 1.95rem;
+      font-weight: 700;
+      color: var(--blue);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      font-family: 'Courier New', monospace;
+    }
+
+    .row[data-status="DEPARTED"] .time-val { color: var(--muted); }
+
+    .r-dest {
+      padding: 0 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .dest-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .row[data-status="DEPARTED"] .dest-name { color: var(--muted); }
+    .row[data-status="CANCELLED"] .dest-name {
+      text-decoration: line-through;
+      color: #6b7280;
+    }
+
+    .company-name {
+      font-size: 0.8rem;
+      color: #6b7280;
+      letter-spacing: 0.03em;
+    }
+
+    .row-note {
+      font-size: 0.68rem;
+      color: #fbbf24;
+      margin-top: 2px;
+    }
+
+    /* STATUS BADGE */
+    .r-status {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 13px 5px 9px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .bdot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .b-SCHEDULED { background:#1a2540; color:#64748b; }
+    .b-SCHEDULED .bdot { background:#374151; }
+
+    .b-ARRIVING  { background:#2a1f06; color:#fbbf24; }
+    .b-ARRIVING  .bdot { background:#f59e0b; animation:pulse 1s infinite; }
+
+    .b-DOCKING   { background:#0c1e35; color:#7dd3fc; }
+    .b-DOCKING   .bdot { background:#38bdf8; animation:pulse 1.5s infinite; }
+
+    .b-DOCKED    { background:#052e16; color:#4ade80; }
+    .b-DOCKED    .bdot { background:#22c55e; animation:pulse 0.8s infinite; }
+
+    .b-BOARDING  { background:#2d1503; color:#fdba74; }
+    .b-BOARDING  .bdot { background:#f97316; animation:pulse 0.5s infinite; }
+
+    .b-DEPARTED  { background:#111827; color:#374151; }
+    .b-DEPARTED  .bdot { background:#1f2937; }
+
+    .b-CANCELLED { background:#2d0808; color:#f87171; }
+    .b-CANCELLED .bdot { background:#dc2626; }
+
+    .b-DELAYED   { background:#1c1203; color:#fbbf24; }
+    .b-DELAYED   .bdot { background:#d97706; animation:pulse 1s infinite; }
+
+    .board-now {
+      font-size: 0.63rem;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #4ade80;
+      animation: pulse 0.7s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.2; }
+    }
+
+    /* EMPTY STATE */
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── FOOTER ──────────────────────────────────────── */
+    .ftr {
+      flex-shrink: 0;
+      background: var(--surface1);
+      border-top: 1px solid var(--border);
+      padding: 7px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ftr-text {
+      font-size: 0.58rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #1e2d45;
+    }
+
+    .conn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .conn-led {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+    .conn-led.off { background: #dc2626; }
+  </style>
+</head>
+<body>
+
+  <header class="hdr">
+    <div>
+      <div class="brand-name">⚓&nbsp;Gili Air Harbour</div>
+      <div class="brand-sub">Departure Information &nbsp;·&nbsp; Informasi Keberangkatan</div>
+    </div>
+    <div class="clock">
+      <div class="clock-time" id="clockTime">--:--</div>
+      <div class="clock-date" id="clockDate">---</div>
+    </div>
+  </header>
+
+  <div id="attentionBanner"></div>
+
+  <div class="col-hdr">
+    <span>Departs</span>
+    <span>Destination / Operator</span>
+    <span style="text-align:right">Status</span>
+  </div>
+
+  <div class="dep-outer">
+    <div class="dep-scroll" id="depScroll">
+      <div class="empty">Loading schedule…</div>
+    </div>
+  </div>
+
+  <footer class="ftr">
+    <span class="ftr-text">Real-time Departure Board · Papan Keberangkatan</span>
+    <span class="conn">
+      <span class="conn-led" id="connLed"></span>
+      <span id="connLabel">CONNECTING</span>
+    </span>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  (() => {
+    'use strict';
+
+    const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function updateClock() {
+      const n = new Date();
+      const h = String(n.getHours()).padStart(2,'0');
+      const m = String(n.getMinutes()).padStart(2,'0');
+      document.getElementById('clockTime').textContent = `${h}:${m}`;
+      document.getElementById('clockDate').textContent =
+        `${DAYS[n.getDay()]}, ${n.getDate()} ${MONTHS[n.getMonth()]} ${n.getFullYear()}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    function renderAttentionBanner(schedules) {
+      const active = schedules.filter(s => s.status === 'DOCKED' || s.status === 'BOARDING');
+      const banner = document.getElementById('attentionBanner');
+      if (!active.length) { banner.className = ''; banner.innerHTML = ''; return; }
+      banner.className = 'visible';
+      banner.innerHTML = active.map(b => {
+        const isDocked = b.status === 'DOCKED';
+        const cls   = isDocked ? 'banner-docked'   : 'banner-boarding';
+        const icon  = isDocked ? '🚢'              : '🟠';
+        const title = isDocked ? `BOARD NOW — ${b.destination.toUpperCase()}` : `BOARDING — ${b.destination.toUpperCase()}`;
+        return `
+          <div class="banner-item ${cls}">
+            <span class="banner-icon">${icon}</span>
+            <div class="banner-body">
+              <div class="banner-title">${title}</div>
+              <div class="banner-sub">${b.scheduledTime} · ${esc(b.company)}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderSchedule(schedules) {
+      const sorted = [...schedules].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+      renderAttentionBanner(sorted);
+
+      const container = document.getElementById('depScroll');
+      if (!sorted.length) {
+        container.innerHTML = '<div class="empty">No departures scheduled</div>';
+        return;
+      }
+
+      container.innerHTML = sorted.map(s => {
+        const note     = s.note ? `<div class="row-note">⚠ ${esc(s.note)}</div>` : '';
+        const boardNow = s.status === 'DOCKED' ? '<div class="board-now">● BOARD NOW</div>' : '';
+        return `
+          <div class="row" data-status="${s.status}">
+            <div class="r-time">
+              <span class="time-val">${esc(s.scheduledTime)}</span>
+            </div>
+            <div class="r-dest">
+              <div class="dest-name">${esc(s.destination)}</div>
+              <div class="company-name">${esc(s.company)}</div>
+              ${note}
+            </div>
+            <div class="r-status">
+              <div class="badge b-${s.status}"><span class="bdot"></span>${s.status}</div>
+              ${boardNow}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;');
+    }
+
+    // Auto-scroll
+    let scrollPos   = 0;
+    let scrollPause = false;
+
+    function autoScroll() {
+      if (scrollPause) return;
+      const el = document.getElementById('depScroll');
+      if (!el) return;
+      const max = el.scrollHeight - el.clientHeight;
+      if (max <= 0) return;
+      scrollPos += 1;
+      if (scrollPos >= max) {
+        scrollPos   = max;
+        el.scrollTop = scrollPos;
+        scrollPause  = true;
+        setTimeout(() => { scrollPos = 0; el.scrollTop = 0; scrollPause = false; }, 3000);
+      } else {
+        el.scrollTop = scrollPos;
+      }
+    }
+    setInterval(autoScroll, 40);
+
+    // Socket
+    const socket = io();
+
+    socket.on('connect', () => {
+      document.getElementById('connLed').classList.remove('off');
+      document.getElementById('connLabel').textContent = 'LIVE';
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('connLed').classList.add('off');
+      document.getElementById('connLabel').textContent = 'OFFLINE';
+    });
+
+    socket.on('update', data => {
+      renderSchedule(data);
+      scrollPos = 0;
+      scrollPause = false;
+    });
+  })();
+  </script>
+</body>
+</html>
